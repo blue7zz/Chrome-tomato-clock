@@ -1,4 +1,4 @@
-// popup.js - Frontend logic for Tomato Clock extension
+// popup.js - Frontend logic for Tomato Clock extension with analytics
 
 class TomatoTimer {
     constructor() {
@@ -6,6 +6,7 @@ class TomatoTimer {
         this.currentPhase = 'work'; // 'work', 'short-break', 'long-break'
         this.currentCycle = 1;
         this.timeRemaining = 0;
+        this.currentTab = 'timer';
         
         // Default durations in minutes
         this.settings = {
@@ -24,14 +25,27 @@ class TomatoTimer {
         this.checkInterval = setInterval(() => {
             this.checkTimerState();
         }, 1000);
+        
+        // Update analytics when switching to analytics tab
+        this.updateAnalytics();
     }
 
     initializeElements() {
+        // Tab elements
+        this.timerTab = document.getElementById('timerTab');
+        this.analyticsTab = document.getElementById('analyticsTab');
+        this.timerContent = document.getElementById('timerContent');
+        this.analyticsContent = document.getElementById('analyticsContent');
+        
         // Timer display elements
         this.statusText = document.getElementById('statusText');
         this.timeDisplay = document.getElementById('timeDisplay');
         this.cycleCount = document.getElementById('cycleCount');
         this.timerDisplayContainer = document.querySelector('.timer-display');
+        
+        // Task selection
+        this.taskTypeSelect = document.getElementById('taskType');
+        this.taskSelection = document.getElementById('taskSelection');
         
         // Control buttons
         this.startPauseBtn = document.getElementById('startPauseBtn');
@@ -45,14 +59,36 @@ class TomatoTimer {
         this.shortBreakInput = document.getElementById('shortBreakDuration');
         this.longBreakInput = document.getElementById('longBreakDuration');
         this.saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        
+        // Analytics elements
+        this.todayPomodoros = document.getElementById('todayPomodoros');
+        this.todayMinutes = document.getElementById('todayMinutes');
+        this.totalPomodoros = document.getElementById('totalPomodoros');
+        this.totalHours = document.getElementById('totalHours');
+        this.weeklyChart = document.getElementById('weeklyChart');
+        this.typeDistribution = document.getElementById('typeDistribution');
+        this.exportDataBtn = document.getElementById('exportDataBtn');
+        this.clearDataBtn = document.getElementById('clearDataBtn');
     }
 
     bindEvents() {
+        // Tab switching
+        this.timerTab.addEventListener('click', () => this.switchTab('timer'));
+        this.analyticsTab.addEventListener('click', () => this.switchTab('analytics'));
+        
+        // Timer controls
         this.startPauseBtn.addEventListener('click', () => this.toggleTimer());
         this.skipBtn.addEventListener('click', () => this.skipPhase());
         this.resetBtn.addEventListener('click', () => this.resetTimer());
         this.settingsBtn.addEventListener('click', () => this.toggleSettings());
         this.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+        
+        // Task type selection
+        this.taskTypeSelect.addEventListener('change', () => this.updateTaskType());
+        
+        // Analytics controls
+        this.exportDataBtn.addEventListener('click', () => this.exportData());
+        this.clearDataBtn.addEventListener('click', () => this.clearData());
         
         // Listen for messages from service worker
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -62,6 +98,34 @@ class TomatoTimer {
                 this.playNotificationSound();
             }
         });
+    }
+
+    switchTab(tab) {
+        this.currentTab = tab;
+        
+        // Update tab buttons
+        this.timerTab.classList.toggle('active', tab === 'timer');
+        this.analyticsTab.classList.toggle('active', tab === 'analytics');
+        
+        // Update tab content
+        this.timerContent.classList.toggle('active', tab === 'timer');
+        this.analyticsContent.classList.toggle('active', tab === 'analytics');
+        
+        if (tab === 'analytics') {
+            this.updateAnalytics();
+        }
+    }
+
+    async updateTaskType() {
+        const taskType = this.taskTypeSelect.value;
+        try {
+            await chrome.runtime.sendMessage({
+                type: 'SET_TASK_TYPE',
+                taskType: taskType
+            });
+        } catch (error) {
+            console.error('Failed to update task type:', error);
+        }
     }
 
     async loadSettings() {
@@ -163,6 +227,8 @@ class TomatoTimer {
             if (this.isRunning) {
                 await chrome.runtime.sendMessage({ type: 'PAUSE_TIMER' });
             } else {
+                // Update task type before starting
+                await this.updateTaskType();
                 await chrome.runtime.sendMessage({ 
                     type: 'START_TIMER',
                     settings: this.settings
@@ -224,6 +290,181 @@ class TomatoTimer {
         this.timerDisplayContainer.className = `timer-display ${this.currentPhase}`;
         if (this.isRunning) {
             this.timerDisplayContainer.classList.add('active');
+        }
+        
+        // Show/hide task selection based on running state
+        if (this.isRunning && this.currentPhase === 'work') {
+            this.timerContent.classList.add('timer-running');
+        } else {
+            this.timerContent.classList.remove('timer-running');
+        }
+    }
+
+    // Analytics methods
+    async updateAnalytics() {
+        try {
+            const response = await chrome.runtime.sendMessage({ type: 'GET_HISTORY' });
+            const history = response.history || [];
+            
+            this.renderTodayStats(history);
+            this.renderTotalStats(history);
+            this.renderWeeklyChart(history);
+            this.renderTypeDistribution(history);
+        } catch (error) {
+            console.error('Failed to update analytics:', error);
+        }
+    }
+
+    renderTodayStats(history) {
+        const today = new Date().toISOString().split('T')[0];
+        const todayRecords = history.filter(record => record.date === today);
+        
+        const todayCount = todayRecords.length;
+        const todayMinutes = todayRecords.reduce((sum, record) => sum + record.duration, 0);
+        
+        this.todayPomodoros.textContent = todayCount;
+        this.todayMinutes.textContent = todayMinutes;
+    }
+
+    renderTotalStats(history) {
+        const totalCount = history.length;
+        const totalMinutes = history.reduce((sum, record) => sum + record.duration, 0);
+        const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+        
+        this.totalPomodoros.textContent = totalCount;
+        this.totalHours.textContent = totalHours;
+    }
+
+    renderWeeklyChart(history) {
+        const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const today = new Date();
+        const weekData = [];
+        
+        // Get data for the last 7 days
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const dayRecords = history.filter(record => record.date === dateStr);
+            
+            weekData.push({
+                label: days[date.getDay()],
+                value: dayRecords.length,
+                date: dateStr
+            });
+        }
+        
+        const maxValue = Math.max(...weekData.map(d => d.value), 1);
+        
+        this.weeklyChart.innerHTML = '';
+        weekData.forEach(day => {
+            const barContainer = document.createElement('div');
+            barContainer.className = 'chart-bar';
+            
+            const barInner = document.createElement('div');
+            barInner.className = 'chart-bar-inner';
+            barInner.style.height = `${(day.value / maxValue) * 100}%`;
+            
+            const label = document.createElement('div');
+            label.className = 'chart-label';
+            label.textContent = day.label;
+            
+            const value = document.createElement('div');
+            value.className = 'chart-value';
+            value.textContent = day.value;
+            
+            barContainer.appendChild(barInner);
+            barContainer.appendChild(value);
+            barContainer.appendChild(label);
+            
+            this.weeklyChart.appendChild(barContainer);
+        });
+    }
+
+    renderTypeDistribution(history) {
+        const typeCount = {};
+        const typeColors = {
+            '工作': '#667eea',
+            '学习': '#38a169',
+            '创意': '#ed8936',
+            '阅读': '#3182ce',
+            '编程': '#805ad5',
+            '其他': '#718096'
+        };
+        
+        // Count records by type
+        history.forEach(record => {
+            const type = record.type || '工作';
+            typeCount[type] = (typeCount[type] || 0) + 1;
+        });
+        
+        const total = history.length || 1;
+        const sortedTypes = Object.entries(typeCount)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 6); // Show top 6 types
+        
+        this.typeDistribution.innerHTML = '';
+        
+        if (sortedTypes.length === 0) {
+            this.typeDistribution.innerHTML = '<div style="text-align: center; color: #718096; font-size: 14px;">暂无数据</div>';
+            return;
+        }
+        
+        sortedTypes.forEach(([type, count]) => {
+            const percentage = Math.round((count / total) * 100);
+            const color = typeColors[type] || '#718096';
+            
+            const item = document.createElement('div');
+            item.className = 'type-item';
+            
+            item.innerHTML = `
+                <div class="type-color" style="background: ${color}"></div>
+                <div class="type-label">${type}</div>
+                <div class="type-value">${count}</div>
+                <div class="type-bar">
+                    <div class="type-bar-fill" style="width: ${percentage}%; background: ${color}"></div>
+                </div>
+            `;
+            
+            this.typeDistribution.appendChild(item);
+        });
+    }
+
+    async exportData() {
+        try {
+            const response = await chrome.runtime.sendMessage({ type: 'EXPORT_HISTORY' });
+            const data = response.data || [];
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { 
+                type: 'application/json' 
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tomato-clock-history-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showNotification('数据已导出');
+        } catch (error) {
+            console.error('Failed to export data:', error);
+            this.showNotification('导出失败');
+        }
+    }
+
+    async clearData() {
+        if (confirm('确定要清除所有历史记录吗？此操作不可恢复。')) {
+            try {
+                await chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' });
+                this.updateAnalytics();
+                this.showNotification('历史记录已清除');
+            } catch (error) {
+                console.error('Failed to clear data:', error);
+                this.showNotification('清除失败');
+            }
         }
     }
 
