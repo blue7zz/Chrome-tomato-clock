@@ -54,6 +54,9 @@ class TomatoClockService {
             }
         }
         
+        // Update icon to reflect current state
+        await this.updateIcon();
+        
         // Update state periodically
         setInterval(() => {
             this.updateTimeRemaining();
@@ -178,6 +181,7 @@ class TomatoClockService {
         
         this.startAlarm(this.timerState.timeRemaining);
         await this.saveState();
+        await this.updateIcon();
         this.broadcastUpdate();
     }
     
@@ -187,6 +191,7 @@ class TomatoClockService {
         
         chrome.alarms.clear('tomato-timer');
         await this.saveState();
+        await this.updateIcon();
         this.broadcastUpdate();
     }
     
@@ -204,6 +209,7 @@ class TomatoClockService {
         
         chrome.alarms.clear('tomato-timer');
         await this.saveState();
+        await this.updateIcon();
         this.broadcastUpdate();
     }
     
@@ -231,6 +237,7 @@ class TomatoClockService {
         this.moveToNextPhase();
         
         await this.saveState();
+        await this.updateIcon();
         this.broadcastUpdate();
     }
     
@@ -278,6 +285,7 @@ class TomatoClockService {
             
             if (timeLeft !== this.timerState.timeRemaining) {
                 this.timerState.timeRemaining = timeLeft;
+                this.updateIcon(); // Update icon with new time
                 this.broadcastUpdate();
                 
                 if (timeLeft <= 0) {
@@ -349,6 +357,51 @@ class TomatoClockService {
         }).catch(() => {
             // Popup might not be open, ignore error
         });
+    }
+    
+    async updateIcon() {
+        try {
+            if (!this.timerState.isRunning) {
+                // Timer is not running, show default badge
+                await chrome.action.setBadgeText({ text: '' });
+                await chrome.action.setBadgeBackgroundColor({ color: '#667eea' });
+                await chrome.action.setTitle({ title: '番茄工作法计时器' });
+                return;
+            }
+            
+            // Format remaining time for badge
+            const minutes = Math.floor(this.timerState.timeRemaining / 60);
+            const seconds = this.timerState.timeRemaining % 60;
+            const timeText = minutes > 0 ? `${minutes}m` : `${seconds}s`;
+            
+            // Set badge text and color based on phase
+            let badgeColor;
+            let title;
+            
+            switch (this.timerState.currentPhase) {
+                case 'work':
+                    badgeColor = '#e53e3e'; // Red for work
+                    title = `工作时间 - ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    break;
+                case 'short-break':
+                    badgeColor = '#38a169'; // Green for short break
+                    title = `短休息 - ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    break;
+                case 'long-break':
+                    badgeColor = '#3182ce'; // Blue for long break
+                    title = `长休息 - ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    break;
+                default:
+                    badgeColor = '#667eea';
+                    title = '番茄工作法计时器';
+            }
+            
+            await chrome.action.setBadgeText({ text: timeText });
+            await chrome.action.setBadgeBackgroundColor({ color: badgeColor });
+            await chrome.action.setTitle({ title: title });
+        } catch (error) {
+            console.error('Failed to update icon:', error);
+        }
     }
     
     // History tracking methods
