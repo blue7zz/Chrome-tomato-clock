@@ -58,6 +58,8 @@ class TomatoTimer {
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.type === 'TIMER_UPDATE') {
                 this.handleTimerUpdate(message.data);
+            } else if (message.type === 'PLAY_SOUND') {
+                this.playNotificationSound();
             }
         });
     }
@@ -112,22 +114,25 @@ class TomatoTimer {
     async loadTimerState() {
         try {
             const response = await chrome.runtime.sendMessage({ type: 'GET_TIMER_STATE' });
-            if (response) {
+            if (response && !response.error) {
                 this.isRunning = response.isRunning;
                 this.currentPhase = response.currentPhase;
                 this.currentCycle = response.currentCycle;
                 this.timeRemaining = response.timeRemaining;
+            } else {
+                console.log('Failed to load timer state or service worker not ready');
+                this.resetTimerLocal();
             }
         } catch (error) {
             console.error('Failed to load timer state:', error);
-            this.resetTimer();
+            this.resetTimerLocal();
         }
     }
 
     async checkTimerState() {
         try {
             const response = await chrome.runtime.sendMessage({ type: 'GET_TIMER_STATE' });
-            if (response) {
+            if (response && !response.error) {
                 const wasRunning = this.isRunning;
                 this.isRunning = response.isRunning;
                 this.currentPhase = response.currentPhase;
@@ -140,7 +145,8 @@ class TomatoTimer {
                 }
             }
         } catch (error) {
-            console.error('Failed to check timer state:', error);
+            // Service worker might not be ready, just continue with current state
+            console.log('Could not check timer state - service worker may not be ready');
         }
     }
 
@@ -178,14 +184,19 @@ class TomatoTimer {
     async resetTimer() {
         try {
             await chrome.runtime.sendMessage({ type: 'RESET_TIMER' });
-            this.currentPhase = 'work';
-            this.currentCycle = 1;
-            this.timeRemaining = this.settings.workDuration * 60;
-            this.isRunning = false;
-            this.updateDisplay();
+            this.resetTimerLocal();
         } catch (error) {
             console.error('Failed to reset timer:', error);
+            this.resetTimerLocal();
         }
+    }
+
+    resetTimerLocal() {
+        this.currentPhase = 'work';
+        this.currentCycle = 1;
+        this.timeRemaining = this.settings.workDuration * 60;
+        this.isRunning = false;
+        this.updateDisplay();
     }
 
     updateDisplay() {
@@ -239,6 +250,33 @@ class TomatoTimer {
         setTimeout(() => {
             notification.remove();
         }, 2000);
+    }
+
+    playNotificationSound() {
+        try {
+            // Create a simple notification sound using Web Audio API
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create a simple beep
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (error) {
+            console.log('Audio playback not available:', error);
+            // Fallback: Try to play a simple system beep
+            if ('vibrate' in navigator) {
+                navigator.vibrate(200);
+            }
+        }
     }
 
     destroy() {
