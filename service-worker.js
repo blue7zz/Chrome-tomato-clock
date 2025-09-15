@@ -86,6 +86,14 @@ class TomatoClockService {
             console.error('Failed to load settings:', error);
         }
     }
+
+    async saveSettings() {
+        try {
+            await chrome.storage.sync.set({ timerSettings: this.settings });
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+        }
+    }
     
     async handleMessage(message, sender, sendResponse) {
         try {
@@ -119,6 +127,7 @@ class TomatoClockService {
                     
                 case 'UPDATE_SETTINGS':
                     this.settings = { ...this.settings, ...message.settings };
+                    await this.saveSettings();
                     sendResponse({ success: true });
                     break;
                     
@@ -257,6 +266,7 @@ class TomatoClockService {
         
         const notificationOptions = {
             type: 'basic',
+            iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAF8klEQVRYhbWXe1BUVRzHP/fe3QUWFpYHyEtAQVFBHsrLR2qlqWnajBMz2mhlNo6NjdNYNs1Y05jWlP2RM7VN5TRZ6dholmlampXvQhTkqbwfAi67sOwuy+6995f3chdYQLLpN3PmnnN+53zP9/f4nXt+OujDh1+iqjA7HlJOQXIKiEhCG0gAEUi5A7GCYgGdDUa+gYkzp7g2YWqaO7+I+jcQRl5Y88/r8IfV8M7NFTZ8VEJDVjYd23NojxMxhiJvKmYNDwcjT/eBGbOGf6Hw7lBjvh7xANy0BFUl7O9JpWN7Nk2Fhdi+fhXlnftg3U3ICGDZGvgiiGWR8FwQrJsCNhvEJsL9W4BfO7WkJhg7GWZn0z5qlOJfkkSztIxPn0jjhTR4y/8+WJsOKUnw5mzk1qdRO2HQgNJKtElh1BCLELPn0WGxqJ3b42gV0sxmj7WfWslfFJQ7f0s6fJUI6hUZZNyGWCZ9A7PnNdXXjR1wLdPdhE/Xv0xQPcqEfyPa4VGhONi5Vd6GD33nWxcED0/ZlgqvNDvg3q5E0JBaWUlz2xt0zJhJy6ixNM+eS/PK1bQ7rIRvXcNHWX3HdDXeex54bSqsf0Fw93JkVm/m15E/H8b08uoJZNfZA9JCgR2rByzOxz9wRNYoFPkV8PDXg0ByPozthLyPe9vqAITcKj4EgLz7rBP3/1Jq5x/A7wPzx1GYOQKnFjJcW1WuWwxjkpXLAJJU4ZCjc6PZqMYHYwx2O6LlMHLKKJrLf3XpGMNjtm5CjWZwKlKe8TewGwJAJNJLfh8gOgc5aRT+7R24VVJ3q83sL+6XjOA6LlIKIUYyNrsQh1uXWmVcOJOUgk7q8fLMJGAORKJ3hOLe5w7mWGVciNEhKxCJJ8ABXFeCCKzpMy5E14O5E+8iCjHavVccPLIlbdPnY2kMQu9QFsXZgL8FjC1IPu4OjZeFNBVYG+kRsEm/2m5FOltdLZqjOJV7eJ9H4KxHJdJgAWsosuOOdIhXWw9wnwJHLmK3w8mTyEfKQOekzVFJ1bUV8PGVg4ItFkmvB/IM2OvsVe8GfAKEzRo8VGpqkcoOYPP5gdYOvw4A82FrMNJhRUZMoK2qBVy6iIJzYX3KeGQZGBtdOg5HLSgJYGvDfxRAjQG7FazN/QY9ACtD9AdAjxIzwOEb6LZM6PvEH4yvM8CdGUG4FAqaFazeWdQjgDEG7F4CtjqQMqGlEYT+v9YFyMlgq8FR0yP3fWoHtwCtHxjbiHCYSRNtrDMNZsJp9SoHRUOyotkQk8bTYu6iJi2VH7M9dtA7wKESdLkbQVhAh9xeDqIWsXSC9xGEFBwDDSMHCDEZuQSLr7F0/B9aPSJYm5TJ8O9+oibfPADi8qXggHYAAWGkM6vLMgGJgAMM/BoBbgE9SCFIsgNhIlQ2Y5l8jZPj0jgw5zJOp0xdVjzZXx/E1gyzrO5SV7bD31dBfj7Y25xGKMkgHZ8B90Pd+VnKjjG/bW5yKPGz+JLKEJLzz9EeKvFH9iWW3VdEe2w8xjjRhU9WVYs7RW7eB/8M5DPQKGFrBmFDEEjnNqn/0i3uLXCPP/DKEjjwDfzm3b9mRaKi9eJ0P6SolLXc8rFpyfpOXMqPvp2jdkc2lOJZ3hEDFxeQJAVNwJljoA7a2vHfGqq8yOVRSDEpmEqE9y5jKj9MylNGbEn/RnJHdQDf1V3OlWwdKdEz8xqZdY2ymdV3K9dU1qJ7cTlSaQnOuE+qJGfm+s/LLedocnG0qRfS/qggHV0KMx9DnF9R1k83ILKG9sRkmvJv4uJrBxj/y9e0p6Zhn3cIJ0hpOVSfjhSI7LEjcjNlbyRAWY2yDzKx9kA6DLNfLfDK9Z3n95ixOLTKWDyQGkNYkEjKPWH4pJr/1/4jh/wJr/iGEftT7EkAAAAASUVORK5CYII=',
             title: '🍅 番茄工作法计时器',
             message: `${currentPhase}结束！现在开始${nextPhase}。`,
             priority: 2
@@ -283,23 +293,19 @@ class TomatoClockService {
     }
     
     playNotificationSound() {
-        // Create a simple notification sound using Web Audio API
-        // This uses a data URL with a simple beep sound
-        const audioContext = new (globalThis.AudioContext || globalThis.webkitAudioContext)();
-        
-        // Create a simple beep
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
+        // AudioContext is not available in service workers
+        // Instead, we'll send a message to the popup to play sound
+        // or rely on the system notification sound
+        try {
+            chrome.runtime.sendMessage({
+                type: 'PLAY_SOUND'
+            }).catch(() => {
+                // Popup might not be open, ignore error
+                console.log('Could not send sound message to popup - popup may be closed');
+            });
+        } catch (error) {
+            console.log('Sound playback not available in service worker');
+        }
     }
     
     broadcastUpdate() {
