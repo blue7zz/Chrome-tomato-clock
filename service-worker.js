@@ -16,6 +16,9 @@ class TomatoClockService {
             longBreakDuration: 15
         };
         
+        this.currentTaskType = '工作'; // Current task type for the session
+        this.sessionStartTime = null; // Track when current session started
+        
         this.init();
     }
     
@@ -131,6 +134,26 @@ class TomatoClockService {
                     sendResponse({ success: true });
                     break;
                     
+                case 'GET_HISTORY':
+                    const history = await this.getHistory();
+                    sendResponse({ history });
+                    break;
+                    
+                case 'EXPORT_HISTORY':
+                    const exportData = await this.getHistory();
+                    sendResponse({ data: exportData });
+                    break;
+                    
+                case 'CLEAR_HISTORY':
+                    await this.clearHistory();
+                    sendResponse({ success: true });
+                    break;
+                    
+                case 'SET_TASK_TYPE':
+                    this.currentTaskType = message.taskType || '工作';
+                    sendResponse({ success: true });
+                    break;
+                    
                 default:
                     sendResponse({ error: 'Unknown message type' });
             }
@@ -147,6 +170,11 @@ class TomatoClockService {
         
         this.timerState.isRunning = true;
         this.timerState.endTime = Date.now() + (this.timerState.timeRemaining * 1000);
+        
+        // Record session start time for work sessions
+        if (this.timerState.currentPhase === 'work') {
+            this.sessionStartTime = new Date();
+        }
         
         this.startAlarm(this.timerState.timeRemaining);
         await this.saveState();
@@ -187,6 +215,11 @@ class TomatoClockService {
     async onTimerComplete() {
         this.timerState.isRunning = false;
         this.timerState.endTime = null;
+        
+        // Record completed pomodoro if it was a work session
+        if (this.timerState.currentPhase === 'work') {
+            await this.recordCompletedPomodoro();
+        }
         
         // Show notification
         await this.showNotification();
@@ -316,6 +349,76 @@ class TomatoClockService {
         }).catch(() => {
             // Popup might not be open, ignore error
         });
+    }
+    
+    // History tracking methods
+    async recordCompletedPomodoro() {
+        if (!this.sessionStartTime) {
+            this.sessionStartTime = new Date(Date.now() - (this.settings.workDuration * 60 * 1000));
+        }
+        
+        const now = new Date();
+        const record = {
+            id: Date.now(),
+            date: now.toISOString().split('T')[0], // YYYY-MM-DD format
+            startTime: this.sessionStartTime.toTimeString().slice(0, 5), // HH:MM format
+            duration: this.settings.workDuration,
+            type: this.currentTaskType || '工作'
+        };
+        
+        try {
+            const result = await chrome.storage.sync.get(['history']);
+            const history = result.history || [];
+            history.push(record);
+            
+            // Keep only last 1000 records to avoid storage limits
+            const limitedHistory = history.slice(-1000);
+            
+            await chrome.storage.sync.set({ history: limitedHistory });
+            console.log('Pomodoro recorded:', record);
+        } catch (error) {
+            console.error('Failed to record pomodoro:', error);
+            // Fallback to local storage if sync fails
+            try {
+                const result = await chrome.storage.local.get(['history']);
+                const history = result.history || [];
+                history.push(record);
+                const limitedHistory = history.slice(-1000);
+                await chrome.storage.local.set({ history: limitedHistory });
+            } catch (localError) {
+                console.error('Failed to record pomodoro to local storage:', localError);
+            }
+        }
+        
+        // Reset session start time
+        this.sessionStartTime = null;
+    }
+    
+    async getHistory() {
+        try {
+            // Try sync storage first
+            const syncResult = await chrome.storage.sync.get(['history']);
+            if (syncResult.history && syncResult.history.length > 0) {
+                return syncResult.history;
+            }
+            
+            // Fallback to local storage
+            const localResult = await chrome.storage.local.get(['history']);
+            return localResult.history || [];
+        } catch (error) {
+            console.error('Failed to get history:', error);
+            return [];
+        }
+    }
+    
+    async clearHistory() {
+        try {
+            await chrome.storage.sync.remove(['history']);
+            await chrome.storage.local.remove(['history']);
+            console.log('History cleared');
+        } catch (error) {
+            console.error('Failed to clear history:', error);
+        }
     }
 }
 
