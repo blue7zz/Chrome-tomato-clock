@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "番茄工作法计时器",
   "name_english": "Tomato Clock",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "一个基于Manifest V3的番茄工作法计时器，帮助您提高工作效率",
   "description_english": "A Manifest V3 based Pomodoro Timer to boost your productivity",
   
