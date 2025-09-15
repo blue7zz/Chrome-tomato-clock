@@ -494,6 +494,19 @@ class TomatoTimer {
     }
 
     playNotificationSound() {
+        // Play 3 consecutive beeps when the popup is open
+        this.playMultipleBeeps(3);
+    }
+    
+    playMultipleBeeps(count = 3) {
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                this.playSingleBeep();
+            }, i * 800); // 800ms delay between each beep
+        }
+    }
+    
+    playSingleBeep() {
         try {
             // Create a simple notification sound using Web Audio API
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -513,7 +526,7 @@ class TomatoTimer {
             oscillator.stop(audioContext.currentTime + 0.5);
         } catch (error) {
             console.log('Audio playback not available:', error);
-            // Fallback: Try to play a simple system beep
+            // Fallback: Try to vibrate if available
             if ('vibrate' in navigator) {
                 navigator.vibrate(200);
             }

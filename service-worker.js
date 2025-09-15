@@ -310,18 +310,20 @@ class TomatoClockService {
             iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAF8klEQVRYhbWXe1BUVRzHP/fe3QUWFpYHyEtAQVFBHsrLR2qlqWnajBMz2mhlNo6NjdNYNs1Y05jWlP2RM7VN5TRZ6dholmlampXvQhTkqbwfAi67sOwuy+6995f3chdYQLLpN3PmnnN+53zP9/f4nXt+OujDh1+iqjA7HlJOQXIKiEhCG0gAEUi5A7GCYgGdDUa+gYkzp7g2YWqaO7+I+jcQRl5Y88/r8IfV8M7NFTZ8VEJDVjYd23NojxMxhiJvKmYNDwcjT/eBGbOGf6Hw7lBjvh7xANy0BFUl7O9JpWN7Nk2Fhdi+fhXlnftg3U3ICGDZGvgiiGWR8FwQrJsCNhvEJsL9W4BfO7WkJhg7GWZn0z5qlOJfkkSztIxPn0jjhTR4y/8+WJsOKUnw5mzk1qdRO2HQgNJKtElh1BCLELPn0WGxqJ3b42gV0sxmj7WfWslfFJQ7f0s6fJUI6hUZZNyGWCZ9A7PnNdXXjR1wLdPdhE/Xv0xQPcqEfyPa4VGhONi5Vd6GD33nWxcED0/ZlgqvNDvg3q5E0JBaWUlz2xt0zJhJy6ixNM+eS/PK1bQ7rIRvXcNHWX3HdDXeex54bSqsf0Fw93JkVm/m15E/H8b08uoJZNfZA9JCgR2rByzOxz9wRNYoFPkV8PDXg0ByPozthLyPe9vqAITcKj4EgLz7rBP3/1Jq5x/A7wPzx1GYOQKnFjJcW1WuWwxjkpXLAJJU4ZCjc6PZqMYHYwx2O6LlMHLKKJrLf3XpGMNjtm5CjWZwKlKe8TewGwJAJNJLfh8gOgc5aRT+7R24VVJ3q83sL+6XjOA6LlIKIUYyNrsQh1uXWmVcOJOUgk7q8fLMJGAORKJ3hOLe5w7mWGVciNEhKxCJJ8ABXFeCCKzpMy5E14O5E+8iCjHavVccPLIlbdPnY2kMQu9QFsXZgL8FjC1IPu4OjZeFNBVYG+kRsEm/2m5FOltdLZqjOJV7eJ9H4KxHJdJgAWsosuOOdIhXWw9wnwJHLmK3w8mTyEfKQOekzVFJ1bUV8PGVg4ItFkmvB/IM2OvsVe8GfAKEzRo8VGpqkcoOYPP5gdYOvw4A82FrMNJhRUZMoK2qBVy6iIJzYX3KeGQZGBtdOg5HLSgJYGvDfxRAjQG7FazN/QY9ACtD9AdAjxIzwOEb6LZM6PvEH4yvM8CdGUG4FAqaFazeWdQjgDEG7F4CtjqQMqGlEYT+v9YFyMlgq8FR0yP3fWoHtwCtHxjbiHCYSRNtrDMNZsJp9SoHRUOyotkQk8bTYu6iJi2VH7M9dtA7wKESdLkbQVhAh9xeDqIWsXSC9xGEFBwDDSMHCDEZuQSLr7F0/B9aPSJYm5TJ8O9+oibfPADi8qXggHYAAWGkM6vLMgGJgAMM/BoBbgE9SCFIsgNhIlQ2Y5l8jZPj0jgw5zJOp0xdVjzZXx/E1gyzrO5SV7bD31dBfj7Y25xGKMkgHZ8B90Pd+VnKjjG/bW5yKPGz+JLKEJLzz9EeKvFH9iWW3VdEe2w8xjjRhU9WVYs7RW7eB/8M5DPQKGFrBmFDEEjnNqn/0i3uLXCPP/DKEjjwDfzm3b9mRaKi9eJ0P6SolLXc8rFpyfpOXMqPvp2jdkc2lOJZ3hEDFxeQJAVNwJljoA7a2vHfGqq8yOVRSDEpmEqE9y5jKj9MylNGbEn/RnJHdQDf1V3OlWwdKdEz8xqZdY2ymdV3K9dU1qJ7cTlSaQnOuE+qJGfm+s/LLedocnG0qRfS/qggHV0KMx9DnF9R1k83ILKG9sRkmvJv4uJrBxj/y9e0p6Zhn3cIJ0hpOVSfjhSI7LEjcjNlbyRAWY2yDzKx9kA6DLNfLfDK9Z3n95ixOLTKWDyQGkNYkEjKPWH4pJr/1/4jh/wJr/iGEftT7EkAAAAASUVORK5CYII=',
             title: '🍅 番茄工作法计时器',
             message: `${currentPhase}结束！现在开始${nextPhase}。`,
-            priority: 2
+            priority: 2,
+            requireInteraction: true, // Keep main notification until user dismisses
+            silent: true // Don't play sound for main notification since we have separate sound notifications
         };
         
         try {
-            await chrome.notifications.create('tomato-timer', notificationOptions);
+            await chrome.notifications.create('tomato-timer-main', notificationOptions);
             
-            // Auto-clear notification after 5 seconds
+            // Auto-clear main notification after 10 seconds if user hasn't interacted
             setTimeout(() => {
-                chrome.notifications.clear('tomato-timer');
-            }, 5000);
+                chrome.notifications.clear('tomato-timer-main');
+            }, 10000);
         } catch (error) {
-            console.error('Failed to create notification:', error);
+            console.error('Failed to create main notification:', error);
         }
     }
     
@@ -333,19 +335,52 @@ class TomatoClockService {
         }
     }
     
-    playNotificationSound() {
+    async playNotificationSound() {
         // AudioContext is not available in service workers
-        // Instead, we'll send a message to the popup to play sound
-        // or rely on the system notification sound
+        // For background sound notifications, we'll create multiple consecutive notifications
         try {
+            // First try to send message to popup if it's open
             chrome.runtime.sendMessage({
                 type: 'PLAY_SOUND'
             }).catch(() => {
-                // Popup might not be open, ignore error
-                console.log('Could not send sound message to popup - popup may be closed');
+                // Popup might not be open, that's fine
+                console.log('Popup not available for sound playback, using notification sounds');
             });
+            
+            // Create 3 consecutive notification sounds for background notifications
+            await this.playConsecutiveNotificationSounds();
         } catch (error) {
-            console.log('Sound playback not available in service worker');
+            console.log('Sound playback error:', error);
+        }
+    }
+    
+    async playConsecutiveNotificationSounds() {
+        // Create 3 consecutive notifications with system sound
+        // Each notification will have system sound enabled
+        const baseNotificationId = 'tomato-timer-sound';
+        
+        for (let i = 1; i <= 3; i++) {
+            setTimeout(async () => {
+                try {
+                    const notificationId = `${baseNotificationId}-${i}`;
+                    await chrome.notifications.create(notificationId, {
+                        type: 'basic',
+                        iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAF8klEQVRYhbWXe1BUVRzHP/fe3QUWFpYHyEtAQVFBHsrLR2qlqWnajBMz2mhlNo6NjdNYNs1Y05jWlP2RM7VN5TRZ6dholmlampXvQhTkqbwfAi67sOwuy+6995f3chdYQLLpN3PmnnN+53zP9/f4nXt+OujDh1+iqjA7HlJOQXIKiEhCG0gAEUi5A7GCYgGdDUa+gYkzp7g2YWqaO7+I+jcQRl5Y88/r8IfV8M7NFTZ8VEJDVjYd23NojxMxhiJvKmYNDwcjT/eBGbOGf6Hw7lBjvh7xANy0BFUl7O9JpWN7Nk2Fhdi+fhXlnftg3U3ICGDZGvgiiGWR8FwQrJsCNhvEJsL9W4BfO7WkJhg7GWZn0z5qlOJfkkSztIxPn0jjhTR4y/8+WJsOKUnw5mzk1qdRO2HQgNJKtElh1BCLELPn0WGxqJ3b42gV0sxmj7WfWslfFJQ7f0s6fJUI6hUZZNyGWCZ9A7PnNdXXjR1wLdPdhE/Xv0xQPcqEfyPa4VGhONi5Vd6GD33nWxcED0/ZlgqvNDvg3q5E0JBaWUlz2xt0zJhJy6ixNM+eS/PK1bQ7rIRvXcNHWX3HdDXeex54bSqsf0Fw93JkVm/m15E/H8b08uoJZNfZA9JCgR2rByzOxz9wRNYoFPkV8PDXg0ByPozthLyPe9vqAITcKj4EgLz7rBP3/1Jq5x/A7wPzx1GYOQKnFjJcW1WuWwxjkpXLAJJU4ZCjc6PZqMYHYwx2O6LlMHLKKJrLf3XpGMNjtm5CjWZwKlKe8TewGwJAJNJLfh8gOgc5aRT+7R24VVJ3q83sL+6XjOA6LlIKIUYyNrsQh1uXWmVcOJOUgk7q8fLMJGAORKJ3hOLe5w7mWGVciNEhKxCJJ8ABXFeCCKzpMy5E14O5E+8iCjHavVccPLIlbdPnY2kMQu9QFsXZgL8FjC1IPu4OjZeFNBVYG+kRsEm/2m5FOltdLZqjOJV7eJ9H4KxHJdJgAWsosuOOdIhXWw9wnwJHLmK3w8mTyEfKQOekzVFJ1bUV8PGVg4ItFkmvB/IM2OvsVe8GfAKEzRo8VGpqkcoOYPP5gdYOvw4A82FrMNJhRUZMoK2qBVy6iIJzYX3KeGQZGBtdOg5HLSgJYGvDfxRAjQG7FazN/QY9ACtD9AdAjxIzwOEb6LZM6PvEH4yvM8CdGUG4FAqaFazeWdQjgDEG7F4CtjqQMqGlEYT+v9YFyMlgq8FR0yP3fWoHtwCtHxjbiHCYSRNtrDMNZsJp9SoHRUOyotkQk8bTYu6iJi2VH7M9dtA7wKESdLkbQVhAh9xeDqIWsXSC9xGEFBwDDSMHCDEZuQSLr7F0/B9aPSJYm5TJ8O9+oibfPADi8qXggHYAAWGkM6vLMgGJgAMM/BoBbgE9SCFIsgNhIlQ2Y5l8jZPj0jgw5zJOp0xdVjzZXx/E1gyzrO5SV7bD31dBfj7Y25xGKMkgHZ8B90Pd+VnKjjG/bW5yKPGz+JLKEJLzz9EeKvFH9iWW3VdEe2w8xjjRhU9WVYs7RW7eB/8M5DPQKGFrBmFDEEjnNqn/0i3uLXCPP/DKEjjwDfzm3b9mRaKi9eJ0P6SolLXc8rFpyfpOXMqPvp2jdkc2lOJZ3hEDFxeQJAVNwJljoA7a2vHfGqq8yOVRSDEpmEqE9y5jKj9MylNGbEn/RnJHdQDf1V3OlWwdKdEz8xqZdY2ymdV3K9dU1qJ7cTlSaQnOuE+qJGfm+s/LLedocnG0qRfS/qggHV0KMx9DnF9R1k83ILKG9sRkmvJv4uJrBxj/y9e0p6Zhn3cIJ0hpOVSfjhSI7LEjcjNlbyRAWY2yDzKx9kA6DLNfLfDK9Z3n95ixOLTKWDyQGkNYkEjKPWH4pJr/1/4jh/wJr/iGEftT7EkAAAAASUVORK5CYII=',
+                        title: '🍅 番茄时钟',
+                        message: `提醒 ${i}/3`,
+                        priority: 2,
+                        requireInteraction: false,
+                        silent: false // This ensures system sound plays
+                    });
+                    
+                    // Auto-clear each sound notification after 1 second
+                    setTimeout(() => {
+                        chrome.notifications.clear(notificationId);
+                    }, 1000);
+                } catch (error) {
+                    console.error(`Failed to create sound notification ${i}:`, error);
+                }
+            }, (i - 1) * 800); // 800ms delay between each beep
         }
     }
     
